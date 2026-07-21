@@ -1,0 +1,228 @@
+/* ============================================================
+   Wardrobe AI — Global Styles
+   ============================================================ */
+
+/* Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── CSS Custom Properties ─────────────────────────────────── */
+:root {
+  --color-bg:        #0f0f0f;
+  --color-surface:   #1a1a1a;
+  --color-surface-2: #222222;
+  --color-ivory:     #f5f0e8;
+  --color-ivory-dim: #ede4d3;
+  --color-gold:      #c9a84c;
+  --color-gold-dim:  #b8921a;
+  --color-text:      #f5f0e8;
+  --color-text-muted:#a8a8a8;
+  --color-border:    rgba(255,255,255,0.06);
+  --color-border-gold: rgba(201,168,76,0.2);
+
+  --radius-glass: 1rem;
+  --blur-glass:   12px;
+
+  /* Sidebar width */
+  --sidebar-w: 5rem;
+  --sidebar-w-expanded: 15rem;
+}
+
+/* ─── Base ───────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 16px; scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root { display: flex; min-height: 100vh; }
+
+/* ─── Typography ─────────────────────────────────────────────── */
+.font-display { font-family: 'Playfair Display', Georgia, serif; }
+
+h1, h2 { font-family: 'Playfair Display', Georgia, serif; }
+
+/* ─── Glassmorphism Components ───────────────────────────────── */
+@layer components {
+  .glass {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(var(--blur-glass));
+    -webkit-backdrop-filter: blur(var(--blur-glass));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-glass);
+  }
+
+  .glass-heavy {
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+
+  .glass-gold {
+    background: rgba(201, 168, 76, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--color-border-gold);
+    border-radius: var(--radius-glass);
+  }
+
+  .glass-dark {
+    background: rgba(15, 15, 15, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-glass);
+  }
+
+  /* ─── Button base ─── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium
+           transition-all duration-200 ease-spring select-none cursor-pointer;
+  }
+
+  .btn-primary {
+    @apply btn bg-gold-500 text-charcoal-900 hover:bg-gold-400 active:scale-95
+           shadow-gold-glow-sm hover:shadow-gold-glow;
+  }
+
+  .btn-ghost {
+    @apply btn text-ivory-300 hover:bg-white/5 active:scale-95;
+  }
+
+  .btn-glass {
+    @apply btn glass text-ivory-300 hover:border-gold-500/30 hover:text-ivory-100 active:scale-95;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-900/40 text-red-300 border border-red-800/40 hover:bg-red-800/50 active:scale-95;
+  }
+
+  /* ─── Input ─── */
+  .input-glass {
+    @apply w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-ivory-300
+           placeholder-charcoal-400 text-sm outline-none
+           focus:border-gold-500/50 focus:ring-1 focus:ring-gold-500/30
+           transition-all duration-200;
+  }
+
+  /* ─── Badge ─── */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-gold   { @apply badge bg-gold-500/15 text-gold-400 border border-gold-500/20; }
+  .badge-glass  { @apply badge glass text-ivory-400 text-xs; }
+  .badge-ivory  { @apply badge bg-ivory-300/10 text-ivory-400 border border-ivory-300/15; }
+
+  /* ─── Scrollbar ─── */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(201,168,76,0.2) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(201,168,76,0.2);
+    border-radius: 2px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: rgba(201,168,76,0.4);
+  }
+
+  /* ─── Shimmer skeleton ─── */
+  .skeleton {
+    @apply relative overflow-hidden bg-white/5 rounded-xl;
+  }
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.8s infinite;
+  }
+
+  /* ─── Section heading ─── */
+  .section-title {
+    @apply font-display text-2xl font-semibold text-ivory-300 tracking-tight;
+  }
+  .section-subtitle {
+    @apply text-sm text-charcoal-400 mt-0.5;
+  }
+
+  /* ─── Card ─── */
+  .card {
+    @apply glass rounded-2xl overflow-hidden transition-all duration-300
+           hover:border-gold-500/20 hover:shadow-glass;
+  }
+
+  /* ─── Divider ─── */
+  .divider { @apply w-full h-px bg-white/5; }
+  .divider-gold { @apply w-full h-px bg-gradient-to-r from-transparent via-gold-500/30 to-transparent; }
+}
+
+/* ─── Utilities ──────────────────────────────────────────────── */
+@layer utilities {
+  .text-gradient-gold {
+    background: linear-gradient(135deg, #e9b230 0%, #c9a84c 40%, #f5de98 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .bg-noise {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  }
+
+  .inset-glow-gold {
+    box-shadow: inset 0 0 40px rgba(201,168,76,0.05);
+  }
+
+  .ease-spring { transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); }
+}
+
+/* ─── Keyframes (non-Tailwind) ───────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ─── Page transition classes used by Framer Motion ─────────── */
+.page-enter  { opacity: 0; transform: translateY(12px); }
+.page-active { opacity: 1; transform: translateY(0); transition: opacity 0.3s ease, transform 0.3s ease; }
+.page-exit   { opacity: 0; transform: translateY(-8px); }
+
+/* ─── R3F Canvas ─────────────────────────────────────────────── */
+canvas { display: block; outline: none; }
