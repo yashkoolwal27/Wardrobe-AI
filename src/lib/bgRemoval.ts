@@ -31,7 +31,7 @@ export async function removeBackground(file: File): Promise<Blob> {
         const samples = [
           getPixelColor(data, 0, 0, canvas.width),
           getPixelColor(data, canvas.width - 1, 0, canvas.width),
-          getPixelColor(data, 0, canvas.height - 1, 0),
+          getPixelColor(data, 0, canvas.height - 1, canvas.width),
           getPixelColor(data, canvas.width - 1, canvas.height - 1, canvas.width),
         ];
 

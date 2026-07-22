@@ -78,15 +78,33 @@ export function WardrobePage() {
       const cleanImageBlob = await removeBackground(file);
 
       // Convert clean image to base64 for Gemini vision analysis
-      setUploadStep('Analyzing image (AI)...');
       const base64Data = await fileToBase64(new File([cleanImageBlob], file.name));
       
-      // Call Gemini 2.0 Flash Vision
-      const analysis = await analyzeClothingItem(base64Data);
+      // Call Gemini 2.0 Flash Vision with fallback protection
+      let analysis: any;
+      try {
+        setUploadStep('Analyzing image (AI)...');
+        const mimeType = (cleanImageBlob.type === 'image/jpeg' || cleanImageBlob.type === 'image/webp')
+          ? cleanImageBlob.type
+          : 'image/png';
+        analysis = await analyzeClothingItem(base64Data, mimeType as any);
+      } catch (aiErr: any) {
+        console.warn('[Wardrobe] AI analysis skipped due to error:', aiErr);
+        const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+        analysis = {
+          category: 'top',
+          color: ['classic'],
+          season: ['all'],
+          occasion: ['casual'],
+          description: cleanName.charAt(0).toUpperCase() + cleanName.slice(1) || 'Custom Clothing Item',
+          tags: ['wardrobe'],
+          brand: null,
+        };
+      }
 
-      // Step 2: Upload item image to Cloudinary (will auto remove background if key matches)
+      // Step 2: Upload item image to Cloudinary (with base64 fallback)
       setUploadStep('Uploading to storage...');
-      const uploadFile = new File([cleanImageBlob], `${Date.now()}-${file.name}`, { type: cleanImageBlob.type });
+      const uploadFile = new File([cleanImageBlob], `${Date.now()}-${file.name}`, { type: cleanImageBlob.type || 'image/png' });
       const { url, thumbnailUrl } = await uploadClothingItem(uploadFile);
 
       // Step 3: Save metadata to Supabase
@@ -95,13 +113,13 @@ export function WardrobePage() {
         userId: user.id,
         imageUrl: url,
         thumbnailUrl: thumbnailUrl,
-        category: analysis.category,
-        color: analysis.color,
-        season: analysis.season,
-        occasion: analysis.occasion,
+        category: analysis.category || 'top',
+        color: analysis.color || [],
+        season: analysis.season || ['all'],
+        occasion: analysis.occasion || ['casual'],
         brand: analysis.brand ?? undefined,
-        description: analysis.description,
-        tags: analysis.tags,
+        description: analysis.description || 'Wardrobe Item',
+        tags: analysis.tags || [],
       });
 
       // Update local store state
@@ -109,15 +127,15 @@ export function WardrobePage() {
       addToast({
         type: 'success',
         title: 'Item added successfully',
-        message: `${analysis.description.slice(0, 50)}...`,
+        message: `${(analysis.description || 'Item saved').slice(0, 50)}...`,
       });
       setIsUploadOpen(false);
     } catch (err: any) {
-      console.error(err);
+      console.error('[Wardrobe] Upload failed:', err);
       addToast({
         type: 'error',
         title: 'Upload failed',
-        message: err.message || 'Check your internet connection and API key settings.',
+        message: err.message || 'An error occurred while uploading. Please try again.',
       });
     } finally {
       setUploading(false);

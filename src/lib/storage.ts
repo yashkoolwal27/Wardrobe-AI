@@ -33,38 +33,45 @@ const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET a
 // ─── Wardrobe Item Upload → Cloudinary ───────────────────────
 export async function uploadClothingItem(file: File): Promise<{ url: string; thumbnailUrl: string }> {
   if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
-    console.warn('[Cloudinary] Missing config — falling back to local object URL (no persistence).');
-    const localUrl = URL.createObjectURL(file);
-    return { url: localUrl, thumbnailUrl: localUrl };
+    console.warn('[Cloudinary] Missing config — using base64 Data URL fallback.');
+    const base64 = await fileToBase64(file);
+    const dataUrl = `data:${file.type || 'image/png'};base64,${base64}`;
+    return { url: dataUrl, thumbnailUrl: dataUrl };
   }
 
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-  formData.append('folder', 'wardrobe-ai/items');
-  // Auto-background removal transformation
-  formData.append('transformation', 'e_background_removal');
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    formData.append('folder', 'wardrobe-ai/items');
 
-  const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-    { method: 'POST', body: formData }
-  );
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+      { method: 'POST', body: formData }
+    );
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`Cloudinary upload failed: ${err.error?.message ?? res.statusText}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.warn(`[Cloudinary] Upload response error (${res.status}):`, err);
+      throw new Error(`Cloudinary upload failed: ${err.error?.message ?? res.statusText}`);
+    }
+
+    const data = await res.json();
+    const baseUrl: string = data.secure_url;
+
+    // Build a thumbnail URL using Cloudinary transforms (200px wide, auto-quality, auto-format)
+    const thumbnailUrl = baseUrl.replace(
+      '/upload/',
+      '/upload/w_200,h_200,c_pad,q_auto,f_auto/'
+    );
+
+    return { url: baseUrl, thumbnailUrl };
+  } catch (error) {
+    console.warn('[Cloudinary] Upload failed, falling back to base64 Data URL:', error);
+    const base64 = await fileToBase64(file);
+    const dataUrl = `data:${file.type || 'image/png'};base64,${base64}`;
+    return { url: dataUrl, thumbnailUrl: dataUrl };
   }
-
-  const data = await res.json();
-  const baseUrl: string = data.secure_url;
-
-  // Build a thumbnail URL using Cloudinary transforms (200px wide, auto-quality, auto-format)
-  const thumbnailUrl = baseUrl.replace(
-    '/upload/',
-    '/upload/w_200,h_200,c_pad,q_auto,f_auto/'
-  );
-
-  return { url: baseUrl, thumbnailUrl };
 }
 
 // ─── Generated Outfit Upload → Firebase Storage ───────────────
