@@ -81,14 +81,24 @@ export function OutfitBuilderPage() {
       // Download and convert images to base64 for Gemini payload
       const imagePayloads = await Promise.all(
         selectedItemDetails.map(async (detail) => {
-          const res = await fetch(detail.url);
-          const blob = await res.blob();
-          const base64 = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-            reader.readAsDataURL(blob);
-          });
-          return { base64, mimeType: blob.type, label: detail.label };
+          if (detail.url.startsWith('data:')) {
+            const [header, base64] = detail.url.split(',');
+            const mimeType = header.match(/:(.*?);/)?.[1] || 'image/png';
+            return { base64, mimeType, label: detail.label };
+          }
+          try {
+            const res = await fetch(detail.url);
+            const blob = await res.blob();
+            const base64 = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+              reader.readAsDataURL(blob);
+            });
+            return { base64, mimeType: blob.type || 'image/png', label: detail.label };
+          } catch (e) {
+            console.warn('[OutfitBuilder] Failed to fetch item image:', detail.url, e);
+            return { base64: '', mimeType: 'image/png', label: detail.label };
+          }
         })
       );
 

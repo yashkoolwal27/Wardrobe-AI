@@ -103,10 +103,6 @@ export async function analyzeClothingItem(
 }
 
 // ─── 2. Outfit Composite Image Generation ─────────────────────
-const OUTFIT_SYSTEM_PROMPT = `You are a professional fashion stylist AI. Given the clothing items shown, create a cohesive, stylish outfit image. 
-Show the items arranged as a beautiful flat-lay on a clean off-white or marble surface, professionally lit, magazine-quality.
-If a body/person photo is provided, show the complete outfit worn by that person with natural lighting.
-Make the composition elegant and visually striking.`;
 
 export async function generateOutfitImage(
   itemImages: Array<{ base64: string; mimeType: string; label: string }>,
@@ -114,108 +110,61 @@ export async function generateOutfitImage(
 ): Promise<OutfitGenerationResult> {
   return withRetry(async () => {
     const client = getClient();
-    // Use gemini-2.0-flash-exp for image output capability
-    const model = client.getGenerativeModel({
-      model: 'gemini-2.0-flash-exp-image-generation',
-      generationConfig: {
-        // @ts-expect-error — responseModalities is valid but not yet in types
-        responseModalities: ['TEXT', 'IMAGE'],
-      },
-    });
+    const model = client.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-    const parts: Part[] = [{ text: OUTFIT_SYSTEM_PROMPT }];
+    const parts: Part[] = [
+      {
+        text: `You are an elite celebrity fashion stylist. Analyze the provided clothing items and create a comprehensive styling recommendation.
+Return ONLY a raw JSON object with these fields:
+{
+  "description": "A sophisticated 2-sentence breakdown of how these items harmonize together (color palette, silhouette, balance).",
+  "stylingTips": ["Tip 1: footwear/accessory advice", "Tip 2: layering or tucking advice", "Tip 3: color contrast or occasion tip"],
+  "occasion": "casual", // one of: ["casual", "formal", "business", "sport", "evening", "beach", "outdoor"]
+  "season": "autumn" // one of: ["spring", "summer", "autumn", "winter", "all"]
+}`
+      }
+    ];
 
-    // Add all item images
     itemImages.forEach(({ base64, mimeType, label }) => {
-      parts.push({ text: `[${label}]:` });
-      parts.push({ inlineData: { data: base64, mimeType: mimeType as 'image/jpeg' } });
+      parts.push({ text: `[Clothing Item: ${label}]:` });
+      parts.push({ inlineData: { data: base64, mimeType: (mimeType || 'image/png') as any } });
     });
 
     if (bodyPhotoBase64) {
-      parts.push({ text: '[Person/body photo for on-body outfit composition]:' });
+      parts.push({ text: '[User body/on-model photo]:' });
       parts.push({ inlineData: { data: bodyPhotoBase64, mimeType: 'image/jpeg' } });
     }
 
-    parts.push({
-      text: 'Generate a stunning outfit composition image. Also provide: a 2-sentence style description, 3 styling tips as a JSON array, the primary occasion (one word), and the primary season (one word). Format the text response as JSON: {"description": "...", "stylingTips": ["...", "...", "..."], "occasion": "...", "season": "..."}',
-    });
-
     const result = await model.generateContent(parts);
-    const response = result.response;
+    const text = result.response.text().trim();
+    const jsonText = text.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
 
-    let generatedImageBlob: Blob | null = null;
-    let generatedImageUrl: string | null = null;
-    let description = 'A beautifully composed outfit.';
-    let stylingTips: string[] = [];
-    let occasion: string = 'casual';
-    let season: string = 'all';
+    let description = 'A beautifully coordinated outfit setup.';
+    let stylingTips: string[] = [
+      'Pair with minimalist accessories to let key pieces shine.',
+      'Ensure proper fit and proportion between top and bottom layers.',
+      'Choose versatile footwear that complements the color palette.'
+    ];
+    let occasion: any = 'casual';
+    let season: any = 'all';
 
-    // Extract image and text from response parts
-    const candidates = response.candidates ?? [];
-    for (const candidate of candidates) {
-      for (const part of candidate.content?.parts ?? []) {
-        if (part.inlineData?.mimeType?.startsWith('image/')) {
-          const byteString = atob(part.inlineData.data);
-          const arr = new Uint8Array(byteString.length);
-          for (let i = 0; i < byteString.length; i++) arr[i] = byteString.charCodeAt(i);
-          generatedImageBlob = new Blob([arr], { type: part.inlineData.mimeType });
-          generatedImageUrl = URL.createObjectURL(generatedImageBlob);
-        } else if (part.text) {
-          const jsonText = part.text
-            .replace(/^```(?:json)?\n?/i, '')
-            .replace(/\n?```$/i, '')
-            .trim();
-          try {
-            const parsed = JSON.parse(jsonText);
-            description = parsed.description ?? description;
-            stylingTips = parsed.stylingTips ?? stylingTips;
-            occasion = parsed.occasion ?? occasion;
-            season = parsed.season ?? season;
-          } catch {
-            // Text might not be JSON — that's okay, use defaults
-          }
-        }
-      }
-    }
-
-    // Fallback: if no image generated, create a text-based result card
-    if (!generatedImageBlob) {
-      // Generate a rich text description as fallback
-      const fallbackModel = client.getGenerativeModel({ model: 'gemini-2.0-flash' });
-      const fallbackPrompt = `You are a fashion stylist. Describe this outfit combination in detail.
-Items: ${itemImages.map((i) => i.label).join(', ')}.
-Respond with JSON: {
-  "description": "2-sentence style description",
-  "stylingTips": ["tip1", "tip2", "tip3"],
-  "occasion": "one word occasion",
-  "season": "one word season"
-}`;
-      const fallbackResult = await fallbackModel.generateContent(fallbackPrompt);
-      const fallbackText = fallbackResult.response
-        .text()
-        .replace(/^```(?:json)?\n?/i, '')
-        .replace(/\n?```$/i, '')
-        .trim();
-      try {
-        const parsed = JSON.parse(fallbackText);
-        description = parsed.description ?? description;
-        stylingTips = parsed.stylingTips ?? stylingTips;
-        occasion = parsed.occasion ?? occasion;
-        season = parsed.season ?? season;
-      } catch {
-        // Use defaults
-      }
+    try {
+      const parsed = JSON.parse(jsonText);
+      if (parsed.description) description = parsed.description;
+      if (Array.isArray(parsed.stylingTips) && parsed.stylingTips.length > 0) stylingTips = parsed.stylingTips;
+      if (parsed.occasion) occasion = parsed.occasion;
+      if (parsed.season) season = parsed.season;
+    } catch (e) {
+      console.warn('[Gemini] JSON parsing error for outfit generation:', e);
     }
 
     return {
-      generatedImageUrl,
-      generatedImageBlob,
+      generatedImageUrl: null,
+      generatedImageBlob: null,
       description,
       stylingTips,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      occasion: occasion as any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      season: season as any,
+      occasion,
+      season,
     };
   });
 }
