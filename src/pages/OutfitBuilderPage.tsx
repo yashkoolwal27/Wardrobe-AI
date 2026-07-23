@@ -9,7 +9,7 @@ import { GlassPanel } from '../components/ui/GlassPanel';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import {
-  Sparkles, Trash2, Save, X, Star
+  Sparkles, Trash2, Save, X, Star, Camera, UserCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ClothingCategory, SavedOutfit } from '../types';
@@ -26,6 +26,7 @@ const CATEGORIES: { id: ClothingCategory; label: string }[] = [
 export function OutfitBuilderPage() {
   const {
     user,
+    profile,
     items,
     setItems,
     selectedItems,
@@ -46,12 +47,30 @@ export function OutfitBuilderPage() {
   const [revealResult, setRevealResult] = useState(false);
   const [mobileTab, setMobileTab] = useState<'closet' | 'mannequin'>('closet');
 
+  // Virtual Try-On Body Photo state
+  const [useBodyPhoto, setUseBodyPhoto] = useState(true);
+  const [customBodyPhoto, setCustomBodyPhoto] = useState<string | undefined>(undefined);
+
   // Fetch wardrobe items if needed
   useEffect(() => {
     if (user && items.length === 0) {
       getWardrobeItems(user.id).then(setItems);
     }
   }, [user, items.length, setItems]);
+
+  // Handle custom body photo upload inside Outfit Builder
+  const handleCustomBodyPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const base64 = evt.target?.result as string;
+      setCustomBodyPhoto(base64);
+      setUseBodyPhoto(true);
+      addToast({ type: 'success', title: 'Body Photo Attached', message: 'Outfit will be styled for your body photo!' });
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Filter wardrobe items for active tab
   const categoryItems = items.filter((item) => item.category === activeCategory);
@@ -102,8 +121,30 @@ export function OutfitBuilderPage() {
         })
       );
 
-      // Call Gemini compositing/styling engine
-      const result = await generateOutfitImage(imagePayloads);
+      // Body photo base64 extraction for personalized virtual try-on styling
+      let bodyPhotoBase64: string | undefined = undefined;
+      const activeBodyPhoto = customBodyPhoto || profile?.bodyPhotoUrl;
+
+      if (useBodyPhoto && activeBodyPhoto) {
+        if (activeBodyPhoto.startsWith('data:')) {
+          bodyPhotoBase64 = activeBodyPhoto.split(',')[1];
+        } else {
+          try {
+            const res = await fetch(activeBodyPhoto);
+            const blob = await res.blob();
+            bodyPhotoBase64 = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+              reader.readAsDataURL(blob);
+            });
+          } catch (e) {
+            console.warn('[OutfitBuilder] Failed to fetch body photo:', e);
+          }
+        }
+      }
+
+      // Call Gemini compositing/styling engine with optional body photo
+      const result = await generateOutfitImage(imagePayloads, bodyPhotoBase64);
 
       // Store results in temporary local lookbook object
       const outfitId = Math.random().toString(36).slice(2);
@@ -331,9 +372,63 @@ export function OutfitBuilderPage() {
       }`}>
         <OutfitStageScene selectedItems={selectedItems} isGenerating={isGenerating} />
         
+        {/* Floating Virtual Try-On Body Photo HUD */}
+        {!isGenerating && !revealResult && (
+          <div className="absolute top-4 right-4 z-20">
+            <div className="glass-heavy p-3 rounded-2xl border-white/10 flex items-center gap-3 shadow-glass">
+              {(customBodyPhoto || profile?.bodyPhotoUrl) ? (
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-12 rounded-lg overflow-hidden glass shrink-0 relative bg-charcoal-900 border border-gold-500/20">
+                    <img
+                      src={customBodyPhoto || profile?.bodyPhotoUrl}
+                      alt="Body photo"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-semibold text-ivory-200 flex items-center gap-1">
+                      <UserCheck size={12} className="text-gold-400" /> Style On My Body
+                    </span>
+                    <label className="text-[10px] text-gold-400 hover:underline cursor-pointer flex items-center gap-1">
+                      <Camera size={9} /> Change Photo
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleCustomBodyPhoto}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                  <button
+                    onClick={() => setUseBodyPhoto(!useBodyPhoto)}
+                    className={`ml-1 px-2 py-1 rounded-lg text-[10px] font-semibold border transition-all ${
+                      useBodyPhoto
+                        ? 'bg-gold-500/20 border-gold-500 text-gold-400'
+                        : 'bg-white/5 border-white/10 text-charcoal-500'
+                    }`}
+                  >
+                    {useBodyPhoto ? 'ON' : 'OFF'}
+                  </button>
+                </div>
+              ) : (
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-gold-400 hover:text-gold-300 font-semibold px-1 py-0.5">
+                  <Camera size={14} />
+                  <span>Attach Body Photo</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleCustomBodyPhoto}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Style generate floating controls */}
         {selectedItems.length > 0 && !isGenerating && !revealResult && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2">
             <Button
               variant="primary"
               size="lg"
@@ -342,6 +437,11 @@ export function OutfitBuilderPage() {
             >
               Generate AI Outfit
             </Button>
+            {(customBodyPhoto || profile?.bodyPhotoUrl) && useBodyPhoto && (
+              <span className="text-[10px] text-gold-400/90 font-medium bg-charcoal-950/70 px-2.5 py-0.5 rounded-full border border-gold-500/20 backdrop-blur-xs">
+                Styling clothes specifically tailored to your body photo
+              </span>
+            )}
           </div>
         )}
       </div>

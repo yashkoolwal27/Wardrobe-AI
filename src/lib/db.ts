@@ -61,6 +61,7 @@ function mapProfile(row: any): UserProfile {
     username: row.username ?? '',
     displayName: row.display_name ?? '',
     avatarUrl: row.avatar_url ?? undefined,
+    bodyPhotoUrl: row.body_photo_url ?? undefined,
     bio: row.bio ?? undefined,
     shareCode: row.share_code ?? '',
     privacy: row.privacy ?? 'private',
@@ -244,7 +245,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
 
 export async function updateUserProfile(
   userId: string,
-  updates: Partial<Pick<UserProfile, 'displayName' | 'bio' | 'avatarUrl' | 'privacy'>>
+  updates: Partial<Pick<UserProfile, 'displayName' | 'bio' | 'avatarUrl' | 'bodyPhotoUrl' | 'privacy'>>
 ): Promise<void> {
   const { error } = await supabase
     .from('profiles')
@@ -252,6 +253,7 @@ export async function updateUserProfile(
       display_name: updates.displayName,
       bio: updates.bio,
       avatar_url: updates.avatarUrl,
+      body_photo_url: updates.bodyPhotoUrl,
       privacy: updates.privacy,
     })
     .eq('id', userId);

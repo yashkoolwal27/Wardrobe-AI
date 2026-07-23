@@ -5,7 +5,7 @@ import { PageTransition } from '../components/layout/PageTransition';
 import { GlassPanel } from '../components/ui/GlassPanel';
 import { Button } from '../components/ui/Button';
 import { ClosetScene } from '../scenes/ClosetScene';
-import { Copy, ArrowRight, X, Inbox, Share2, Check } from 'lucide-react';
+import { Copy, ArrowRight, X, Inbox, Share2, Check, Camera, User as UserIcon, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { PrivacySetting, UserProfile, WardrobeItem } from '../types';
 
@@ -26,13 +26,35 @@ export function ProfilePage() {
   } | null>(null);
   const [friendLoading, setFriendLoading] = useState(false);
 
+  const [bodyPhotoUrl, setBodyPhotoUrl] = useState<string | undefined>(undefined);
+
   useEffect(() => {
     if (profile) {
       setPrivacy(profile.privacy);
       setDisplayName(profile.displayName);
       setBio(profile.bio ?? '');
+      setBodyPhotoUrl(profile.bodyPhotoUrl);
     }
   }, [profile]);
+
+  const handleBodyPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64Url = event.target?.result as string;
+        setBodyPhotoUrl(base64Url);
+        await updateUserProfile(user.id, { bodyPhotoUrl: base64Url });
+        if (profile) setProfile({ ...profile, bodyPhotoUrl: base64Url });
+        addToast({ type: 'success', title: 'Body Photo Saved', message: 'Your full body photo will now be used for AI styling!' });
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Upload failed', message: err.message });
+    }
+  };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +66,7 @@ export function ProfilePage() {
         displayName,
         bio,
         privacy,
+        bodyPhotoUrl,
       });
 
       // Update state store
@@ -53,6 +76,7 @@ export function ProfilePage() {
           displayName,
           bio,
           privacy,
+          bodyPhotoUrl,
         });
       }
 
@@ -142,6 +166,51 @@ export function ProfilePage() {
                 <span className="text-[10px] text-charcoal-400 leading-normal">
                   Give this code to a friend so they can browse your wardrobe in 3D.
                 </span>
+              </div>
+
+              {/* Full Body Photo for Virtual Try-On */}
+              <div className="glass p-4 flex flex-col gap-3 border-gold-500/20">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gold-400 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles size={12} /> Full Body Styling Photo
+                  </span>
+                  <span className="text-charcoal-500">Virtual Try-On</span>
+                </div>
+
+                {bodyPhotoUrl ? (
+                  <div className="flex items-center gap-3 bg-charcoal-950/60 p-2.5 rounded-xl border border-white/5">
+                    <div className="w-14 h-20 rounded-lg overflow-hidden glass shrink-0 relative bg-charcoal-900">
+                      <img src={bodyPhotoUrl} alt="Full Body Photo" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+                      <span className="text-xs font-semibold text-ivory-200">Body Photo Active</span>
+                      <span className="text-[10px] text-charcoal-400">Used for personalized AI Virtual Try-On styling.</span>
+                      <label className="text-[10px] font-semibold text-gold-400 hover:text-gold-300 cursor-pointer flex items-center gap-1">
+                        <Camera size={10} /> Change Photo
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleBodyPhotoUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="border border-dashed border-gold-500/30 rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gold-500/5 transition-all">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleBodyPhotoUpload}
+                      className="hidden"
+                    />
+                    <div className="w-8 h-8 rounded-full bg-gold-500/10 flex items-center justify-center mb-1 text-gold-400">
+                      <UserIcon size={16} />
+                    </div>
+                    <span className="text-xs font-semibold text-ivory-200 mb-0.5">Upload Full Body Photo</span>
+                    <span className="text-[10px] text-charcoal-500">Upload your picture to style clothes on your body!</span>
+                  </label>
+                )}
               </div>
 
               {/* Edit form */}

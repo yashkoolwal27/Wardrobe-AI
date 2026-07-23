@@ -113,18 +113,26 @@ export async function generateOutfitImage(
     const client = getClient();
     const model = client.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-    const parts: Part[] = [
-      {
-        text: `You are an elite celebrity fashion stylist. Analyze the provided clothing items and create a comprehensive styling recommendation.
+    const promptText = bodyPhotoBase64
+      ? `You are a world-class personal celebrity stylist. Analyze the provided user body/person photo and the selected clothing items.
+Provide personalized styling advice tailored specifically to the person shown in the body photo.
+Return ONLY a raw JSON object with these fields:
+{
+  "description": "A 2-sentence personalized styling analysis of how these clothes complement the user's body shape, skin tone, and frame.",
+  "stylingTips": ["Personalized Tip 1: Fit and tucking advice for their frame", "Personalized Tip 2: Color harmony with their skin/hair tone", "Personalized Tip 3: Footwear or proportion balance recommendation"],
+  "occasion": "casual",
+  "season": "all"
+}`
+      : `You are an elite celebrity fashion stylist. Analyze the provided clothing items and create a comprehensive styling recommendation.
 Return ONLY a raw JSON object with these fields:
 {
   "description": "A sophisticated 2-sentence breakdown of how these items harmonize together (color palette, silhouette, balance).",
   "stylingTips": ["Tip 1: footwear/accessory advice", "Tip 2: layering or tucking advice", "Tip 3: color contrast or occasion tip"],
-  "occasion": "casual", // one of: ["casual", "formal", "business", "sport", "evening", "beach", "outdoor"]
-  "season": "autumn" // one of: ["spring", "summer", "autumn", "winter", "all"]
-}`
-      }
-    ];
+  "occasion": "casual",
+  "season": "autumn"
+}`;
+
+    const parts: Part[] = [{ text: promptText }];
 
     itemImages.forEach(({ base64, mimeType, label }) => {
       parts.push({ text: `[Clothing Item: ${label}]:` });

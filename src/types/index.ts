@@ -82,6 +82,7 @@ export interface UserProfile {
   username: string;
   displayName: string;
   avatarUrl?: string;
+  bodyPhotoUrl?: string;
   bio?: string;
   shareCode: string;
   privacy: PrivacySetting;
