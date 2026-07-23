@@ -108,6 +108,7 @@ export interface GeminiAnalysisResult {
   description: string;
   tags: string[];
   brand?: string;
+  box_2d?: [number, number, number, number];
 }
 
 export interface OutfitGenerationResult {

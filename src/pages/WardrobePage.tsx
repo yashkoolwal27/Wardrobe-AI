@@ -106,23 +106,16 @@ export function WardrobePage() {
     setUploadStep('processing');
 
     try {
-      // Step 1: Background removal
-      setProcessingStatus('Removing background...');
-      const cleaned = await removeBackground(file);
-      setCleanBlob(cleaned);
+      // Step 1: Gemini AI Vision Analysis & Bounding Box Detection
+      setProcessingStatus('Analyzing clothing & detecting item (AI)...');
+      const base64Data = await fileToBase64(file);
+      const mime = (file.type === 'image/jpeg' || file.type === 'image/webp') ? file.type : 'image/png';
 
-      const localPreview = URL.createObjectURL(cleaned);
-      setPreviewUrl(localPreview);
-
-      // Step 2: Gemini AI Analysis
-      const base64Data = await fileToBase64(new File([cleaned], file.name));
       let analysis: any;
       try {
-        setProcessingStatus('Analyzing clothing (AI)...');
-        const mime = (cleaned.type === 'image/jpeg' || cleaned.type === 'image/webp') ? cleaned.type : 'image/png';
         analysis = await analyzeClothingItem(base64Data, mime as any);
       } catch (aiErr) {
-        console.warn('[Wardrobe] AI analysis skipped:', aiErr);
+        console.warn('[Wardrobe] AI analysis fallback:', aiErr);
         const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
         analysis = {
           category: file.name.toLowerCase().includes('pant') || file.name.toLowerCase().includes('jean') || file.name.toLowerCase().includes('trouser') ? 'bottom' : 'top',
@@ -134,6 +127,14 @@ export function WardrobePage() {
           brand: '',
         };
       }
+
+      // Step 2: Extract clothing item, crop to bounding box & remove background
+      setProcessingStatus('Extracting cloth & removing background...');
+      const cleaned = await removeBackground(file, analysis.box_2d);
+      setCleanBlob(cleaned);
+
+      const localPreview = URL.createObjectURL(cleaned);
+      setPreviewUrl(localPreview);
 
       // Pre-fill review form fields
       setItemCategory(analysis.category || 'top');

@@ -72,7 +72,8 @@ const ANALYSIS_PROMPT = `You are a fashion expert AI. Analyze this clothing item
   "occasion": array from ["casual", "formal", "business", "sport", "evening", "beach", "outdoor"],
   "description": "one sentence describing the item",
   "tags": array of 3-6 descriptive tags (e.g. ["slim fit", "cotton", "v-neck"]),
-  "brand": "brand name if visible, otherwise null"
+  "brand": "brand name if visible, otherwise null",
+  "box_2d": [ymin, xmin, ymax, xmax] // normalized 0-1000 integer array bounding box surrounding ONLY the primary clothing item (excluding human face, neck, arms, skin, legs, and background elements)
 }
 Return ONLY the raw JSON, no markdown, no code blocks, no extra text.`;
 
